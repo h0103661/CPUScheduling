@@ -14,7 +14,9 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 
@@ -258,7 +260,7 @@ public class MainCPUScheduling extends JFrame{
 	 * scheduling
 	 */
 	
-	private Process pIdle = new Process("Idle", 0, 0, 0);
+	private Process pIdle = new Process("/", 0, 0, 0);
 	private Process pEND = new Process("END", 0, 0, 0);
 	
 	private Map<Integer, Process> createSchedulingFCFS(List<Process> listPro){
@@ -341,12 +343,14 @@ public class MainCPUScheduling extends JFrame{
 	private int layoutX, layoutY;
     private BorderLayout layoutMain;
     private Container containerMain;
+    
+    private int picmult = 10;
 
 	private void initGui() {
 		/*
 		 * main frame
 		 */
-		layoutX = 1200;
+		layoutX = 1920;
         layoutY = 800;
         setSize(layoutX, layoutY);
         setTitle(frameName);
@@ -356,8 +360,33 @@ public class MainCPUScheduling extends JFrame{
         setLayout(layoutMain);
         
         containerMain = getContentPane();
-        //containerMain.setLayout(null);
+        containerMain.setLayout(null);
         
+        /*
+         * pic
+         */
+        int locX = 10;
+        int locY = 0;
+        String lastn = "";
+        int lasti = -1;
+        for(Integer i : mapSchFCFS.keySet()) {
+			Process p = mapSchFCFS.get(i);
+			if(lasti != -1) {
+				containerMain.add(addJLabel(String.valueOf(lasti), locX - 5, locY));
+				int length = (i - lasti);
+				containerMain.add(addJButton(lastn, locX, locY + 25, length));
+				locX += (length * picmult) + 1;
+			}
+			lastn = p.getName();
+			lasti = i;
+			if(p == this.pEND) {
+				containerMain.add(addJLabel(String.valueOf(i), locX - 5, locY));
+			}
+		}
+        
+        /*
+         * table
+         */
         String[] columns = {"Process", "priority", "burst", "arrival", "Turnaround", "Waiting"};
         Object[][] list = new Object[listPro.size()][6];
         int count = 0;
@@ -374,8 +403,28 @@ public class MainCPUScheduling extends JFrame{
         
         JScrollPane scrollPane = new JScrollPane(jt);  
         jt.setFillsViewportHeight(true);
+        scrollPane.setBounds(0, 100, layoutX, layoutY);
         containerMain.add(scrollPane);
         
+        /*
+         * finish
+         */
         setVisible(true);
+	}
+	
+	private JLabel addJLabel(String title, int x, int y) {
+		int length = title.length() * 8;
+		
+		JLabel j = new JLabel(title);
+		j.setBounds(x, y, length, 25);
+		
+		return j;
+	}
+	
+	private JButton addJButton(String title, int x, int y, int length) {
+		JButton j = new JButton(title);
+		j.setBounds(x, y, (length * picmult), 25);
+		
+		return j;
 	}
 }
