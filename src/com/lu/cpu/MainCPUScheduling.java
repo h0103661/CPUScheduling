@@ -2,8 +2,6 @@ package com.lu.cpu;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -17,13 +15,15 @@ import java.util.Scanner;
 import java.util.TreeMap;
 
 import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 
-public class MainCPUScheduling extends JFrame implements WindowListener{
+public class MainCPUScheduling extends JFrame{
 
 	private static MainCPUScheduling instance;
 	
 	private static final long serialVersionUID = 1L;
-	private static String frameName = "109700015 CPU排程工具";
+	private static String frameName = "109700015 呂宥融 CPU排程工具";
 	
 	private static boolean DEBUG = false;
 	
@@ -96,6 +96,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 		for(Process p : mapTimeRunFCFS.keySet()) {
 			Integer i = mapTimeRunFCFS.get(p);
 			log("[FCFS] " + p.getName() + " Turnaround Time: " + i);
+			p.setFCFS_turn(i);
 		}
 		
 		log("[FCFS] ========================");
@@ -104,14 +105,14 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 		for(Process p : mapTimeWaitFCFS.keySet()) {
 			Integer i = mapTimeWaitFCFS.get(p);
 			log("[FCFS] " + p.getName() + " Waiting Time: " + i);
+			p.setFCFS_wait(i);
 		}
 		
 		log("[FCFS] ========================");
 		
 		//gui
-		/*
+		
 		initGui();
-		addWindowListener(this);*/
 	}
 	
 	/*
@@ -191,7 +192,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 				continue;
 			}
 			this.setChangeTime(in);
-			logDEBUG("[create list pro] set change time: " + this.getChangeTime());
+			log("[create list pro] set change time: " + this.getChangeTime());
 		}
 		
 		//remove change time from list
@@ -346,61 +347,35 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 		 * main frame
 		 */
 		layoutX = 1200;
-        layoutY = 1000;
+        layoutY = 800;
         setSize(layoutX, layoutY);
         setTitle(frameName);
-        setResizable(false);
+        setResizable(true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         layoutMain = new BorderLayout();
         setLayout(layoutMain);
         
         containerMain = getContentPane();
-        containerMain.setLayout(null);
-	}
-	
-	/*
-	 * WindowListener
-	 */
-
-	@Override
-	public void windowOpened(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowClosing(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowClosed(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowIconified(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowDeiconified(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowActivated(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void windowDeactivated(WindowEvent e) {
-		// TODO Auto-generated method stub
-		
+        //containerMain.setLayout(null);
+        
+        String[] columns = {"Process", "priority", "burst", "arrival", "Turnaround", "Waiting"};
+        Object[][] list = new Object[listPro.size()][6];
+        int count = 0;
+        for(Process p : listPro) {
+        	list[count][0] = p.getName();
+        	list[count][1] = p.getPriority();
+        	list[count][2] = p.getBurst();
+        	list[count][3] = p.getArrival();
+        	list[count][4] = p.getFCFS_turn();
+        	list[count][5] = p.getFCFS_wait();
+        	count++;
+        }
+        JTable jt = new JTable(list, columns);
+        
+        JScrollPane scrollPane = new JScrollPane(jt);  
+        jt.setFillsViewportHeight(true);
+        containerMain.add(scrollPane);
+        
+        setVisible(true);
 	}
 }
