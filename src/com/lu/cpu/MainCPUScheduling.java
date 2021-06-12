@@ -25,6 +25,8 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	private static final long serialVersionUID = 1L;
 	private static String frameName = "109700015 CPU排程工具";
 	
+	private static boolean DEBUG = false;
+	
 	/*
 	 * create instance
 	 */
@@ -43,12 +45,17 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	}
 	
 	/*
-	 * log
+	 * logDEBUG
 	 */
 	
 	public void log(String msg) {
     	System.out.println(msg);
-    	//pushLog(msg);
+    	//pushlogDEBUG(msg);if(DEBUG)
+	}
+	
+	public void logDEBUG(String msg) {
+		if(DEBUG)System.out.println(msg);
+    	//pushlogDEBUG(msg);
 	}
 	
 	/*
@@ -59,11 +66,13 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	private List<String> listInput;
 	private List<Process> listPro;
 	private Map<Integer, Process> mapSchFCFS;
+	private Map<Process, Integer> mapTimeRunFCFS;
+	private Map<Process, Integer> mapTimeWaitFCFS;
 	
 	private void init() {
 		//排程
-		listInput = readFileFromString(fileInputName);
-		listPro = createListPro(listInput);
+		listInput = this.readFileFromString(fileInputName);
+		listPro = this.createListPro(listInput);
 		
 		//sort by arrival
 		Collections.sort(listPro);
@@ -71,11 +80,33 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 			log("[after sort] process " + p.getName() + " : " + p.getPriority() + ", " + p.getBurst() + ", " + p.getArrival());
 		}
 		
-		mapSchFCFS = createSchedulingFCFS(listPro);
+		//FCFS
+		
+		log("[FCFS] ========================");
+		
+		mapSchFCFS = this.createSchedulingFCFS(listPro);
 		for(Integer i : mapSchFCFS.keySet()) {
 			Process p = mapSchFCFS.get(i);
 			log("[FCFS] at " + i + " : " + p.getName());
 		}
+		
+		log("[FCFS] ========================");
+		
+		mapTimeRunFCFS = this.getTurnaroundTime(listPro, mapSchFCFS);
+		for(Process p : mapTimeRunFCFS.keySet()) {
+			Integer i = mapTimeRunFCFS.get(p);
+			log("[FCFS] " + p.getName() + " Turnaround Time: " + i);
+		}
+		
+		log("[FCFS] ========================");
+		
+		mapTimeWaitFCFS = this.getWaitingTime(listPro, mapSchFCFS);
+		for(Process p : mapTimeWaitFCFS.keySet()) {
+			Integer i = mapTimeWaitFCFS.get(p);
+			log("[FCFS] " + p.getName() + " Waiting Time: " + i);
+		}
+		
+		log("[FCFS] ========================");
 		
 		//gui
 		/*
@@ -88,7 +119,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	 */
 	
 	private List<String> readFileFromString(String loc) {
-		log("[read file] ========================");
+		logDEBUG("[read file] ========================");
 		
 		List<String> listInputs = new ArrayList<String>();
 		/*
@@ -110,7 +141,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 		while(scan.hasNext()){
 			String next = scan.next();
 			listInputs.add(next);
-			log("[read file] read: " + next);
+			logDEBUG("[read file] read: " + next);
 		}
 		
 		/*
@@ -128,7 +159,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 			e.printStackTrace();
 		}
 		
-		log("[read file] ========================");
+		logDEBUG("[read file] ========================");
 		
 		return listInputs;
 	}
@@ -144,7 +175,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	}
 
 	private List<Process> createListPro(List<String> listInput){
-		log("[create list pro] ========================");
+		logDEBUG("[create list pro] ========================");
 		
 		List<Process> list = new ArrayList<Process>();
 		
@@ -160,7 +191,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 				continue;
 			}
 			this.setChangeTime(in);
-			log("[create list pro] set change time: " + this.getChangeTime());
+			logDEBUG("[create list pro] set change time: " + this.getChangeTime());
 		}
 		
 		//remove change time from list
@@ -205,7 +236,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 				
 				//create new process
 				list.add(new Process(name, priority, burst, arrival));
-				log("[create list pro] new process " + name + " : " + priority + ", " + burst + ", " + arrival);
+				logDEBUG("[create list pro] new process " + name + " : " + priority + ", " + burst + ", " + arrival);
 				
 				//init
 				name = "";
@@ -217,7 +248,7 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 			}
 		}
 		
-		log("[create list pro] ========================");
+		logDEBUG("[create list pro] ========================");
 		
 		return list;
 	}
@@ -226,18 +257,11 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 	 * scheduling
 	 */
 	
-	private Process pIdle = new Process("pIdle", 0, 0, 0);
-	
-	public Process getpIdle() {
-		return pIdle;
-	}
-
-	public void setpIdle(Process pIdle) {
-		this.pIdle = pIdle;
-	}
+	private Process pIdle = new Process("Idle", 0, 0, 0);
+	private Process pEND = new Process("END", 0, 0, 0);
 	
 	private Map<Integer, Process> createSchedulingFCFS(List<Process> listPro){
-		log("[sch FCFS] ========================");
+		logDEBUG("[sch FCFS] ========================");
 		
 		Map<Integer, Process> mapSch = new TreeMap<Integer, Process>();
 		
@@ -248,16 +272,65 @@ public class MainCPUScheduling extends JFrame implements WindowListener{
 			//如果下一個時間比到達時間早, 補idle
 			if(next < p.getArrival()) {
 				mapSch.put(next, pIdle);
-				log("[sch FCFS] at " + next + " : " + pIdle.getName());
+				logDEBUG("[sch FCFS] at " + next + " : " + pIdle.getName());
 				next = p.getArrival();
 			}
 			mapSch.put(next, p);
-			log("[sch FCFS] at " + next + " : " + p.getName());
+			logDEBUG("[sch FCFS] at " + next + " : " + p.getName());
 			next += p.getBurst();
 		}
 		
-		log("[sch FCFS] ========================");
+		mapSch.put(next, pEND);
+		logDEBUG("[sch FCFS] at " + next + " END ");
+		
+		logDEBUG("[sch FCFS] ========================");
 		return mapSch;
+	}
+	
+	private Map<Process, Integer> getTurnaroundTime(List<Process> listPro, Map<Integer, Process> mapSch){
+		logDEBUG("[get turn time] ========================");
+		
+		Map<Process, Integer> mapTimeRun = new TreeMap<Process, Integer>();
+		
+		boolean next = false;
+		for(Process pro : listPro) {
+			int lastRunTime = 0;
+			for(Integer i : mapSch.keySet()) {
+				if(next) {
+					next = false;
+					lastRunTime = Integer.max(lastRunTime, i);
+				} else {
+					if(mapSch.get(i) == pro) {
+						next = true;
+					}
+				}
+			}
+			mapTimeRun.put(pro, lastRunTime - pro.getArrival());
+		}
+		
+		
+		logDEBUG("[get turn time] ========================");
+		
+		return mapTimeRun;
+	}
+	
+	private Map<Process, Integer> getWaitingTime(List<Process> listPro, Map<Integer, Process> mapSch){
+		logDEBUG("[get wait time] ========================");
+		
+		Map<Process, Integer> mapTimeWait = new TreeMap<Process, Integer>();
+		
+		for(Process pro : listPro) {
+			for(Integer i : mapSch.keySet()) {
+				if(mapSch.get(i) == pro) {
+					mapTimeWait.put(pro, i - pro.getArrival());
+				}
+			}
+		}
+		
+		
+		logDEBUG("[get wait time] ========================");
+		
+		return mapTimeWait;
 	}
 	
 	/*
