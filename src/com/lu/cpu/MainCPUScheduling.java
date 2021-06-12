@@ -2,6 +2,8 @@ package com.lu.cpu;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,6 +17,7 @@ import java.util.Scanner;
 import java.util.TreeMap;
 
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
@@ -64,7 +67,6 @@ public class MainCPUScheduling extends JFrame{
 	 * init
 	 */
 	
-	private String fileInputName = "input.txt";
 	private List<String> listInput;
 	private List<Process> listPro;
 	private Map<Integer, Process> mapSchFCFS;
@@ -72,8 +74,13 @@ public class MainCPUScheduling extends JFrame{
 	private Map<Process, Integer> mapTimeWaitFCFS;
 	
 	private void init() {
+		
+		initGui();
+	}
+	
+	private void scheduling(File file) {
 		//排程
-		listInput = this.readFileFromString(fileInputName);
+		listInput = this.readFileFromFile(file);
 		listPro = this.createListPro(listInput);
 		
 		//sort by arrival
@@ -114,21 +121,22 @@ public class MainCPUScheduling extends JFrame{
 		
 		//gui
 		
-		initGui();
+		clearGui();
+		createGuiPic(locY);
+        createGuiTable(locY);
 	}
 	
 	/*
 	 * read file from string location to list string
 	 */
 	
-	private List<String> readFileFromString(String loc) {
+	private List<String> readFileFromFile(File file) {
 		logDEBUG("[read file] ========================");
 		
 		List<String> listInputs = new ArrayList<String>();
 		/*
 		 * 讀取檔案
 		 */
-		File file = new File(loc);
 		FileReader reader = null;
 		try {
 			reader = new FileReader(file);
@@ -344,14 +352,16 @@ public class MainCPUScheduling extends JFrame{
     private BorderLayout layoutMain;
     private Container containerMain;
     
+    private int locY = 0;
+    
     private int picmult = 10;
-
-	private void initGui() {
-		/*
+    
+    private void initGui() {
+    	/*
 		 * main frame
 		 */
 		layoutX = 1920;
-        layoutY = 800;
+        layoutY = 500;
         setSize(layoutX, layoutY);
         setTitle(frameName);
         setResizable(true);
@@ -363,10 +373,44 @@ public class MainCPUScheduling extends JFrame{
         containerMain.setLayout(null);
         
         /*
-         * pic
+         * Basic
          */
-        int locX = 10;
-        int locY = 0;
+        addChooseFileBtn();
+        
+        /*
+         * finish
+         */
+        locY += 50;
+        
+        setVisible(true);
+    }
+    
+    private void clearGui() {
+    	containerMain.removeAll();
+    	addChooseFileBtn();
+    	containerMain.revalidate();
+    	containerMain.repaint();
+    }
+    
+    private void addChooseFileBtn() {
+    	JButton btn_cf = new JButton("選擇檔案");
+        btn_cf.addActionListener(new ActionListener(){
+	        public void actionPerformed(ActionEvent a){
+		        JFileChooser fileChooser = new JFileChooser();
+		        int returnValue = fileChooser.showOpenDialog(null);
+		        if (returnValue == JFileChooser.APPROVE_OPTION){
+			        File selectedFile = fileChooser.getSelectedFile();
+			        log("[select file] " + selectedFile.getName());
+			        scheduling(selectedFile);
+		        }
+	        }
+        });
+        btn_cf.setBounds(0, 0, 75, 25);
+        containerMain.add(btn_cf);
+    }
+
+	private void createGuiPic(int locY) {
+		int locX = 10;
         String lastn = "";
         int lasti = -1;
         for(Integer i : mapSchFCFS.keySet()) {
@@ -375,7 +419,7 @@ public class MainCPUScheduling extends JFrame{
 				containerMain.add(addJLabel(String.valueOf(lasti), locX - 5, locY));
 				int length = (i - lasti);
 				containerMain.add(addJButton(lastn, locX, locY + 25, length));
-				locX += (length * picmult) + 1;
+				locX += (length * picmult);
 			}
 			lastn = p.getName();
 			lasti = i;
@@ -383,10 +427,9 @@ public class MainCPUScheduling extends JFrame{
 				containerMain.add(addJLabel(String.valueOf(i), locX - 5, locY));
 			}
 		}
-        
-        /*
-         * table
-         */
+	}
+	
+	private void createGuiTable(int locY) {
         String[] columns = {"Process", "priority", "burst", "arrival", "Turnaround", "Waiting"};
         Object[][] list = new Object[listPro.size()][6];
         int count = 0;
@@ -403,13 +446,8 @@ public class MainCPUScheduling extends JFrame{
         
         JScrollPane scrollPane = new JScrollPane(jt);  
         jt.setFillsViewportHeight(true);
-        scrollPane.setBounds(0, 100, layoutX, layoutY);
+        scrollPane.setBounds(0, locY + 100, layoutX, layoutY);
         containerMain.add(scrollPane);
-        
-        /*
-         * finish
-         */
-        setVisible(true);
 	}
 	
 	private JLabel addJLabel(String title, int x, int y) {
