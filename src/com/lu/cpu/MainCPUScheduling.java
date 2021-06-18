@@ -30,7 +30,7 @@ public class MainCPUScheduling extends JFrame{
 	private static final long serialVersionUID = 1L;
 	private static String frameName = "109700015 呂宥融 CPU排程工具";
 	
-	private static boolean DEBUG = false;
+	private static boolean DEBUG = true;
 	
 	/*
 	 * create instance
@@ -72,6 +72,9 @@ public class MainCPUScheduling extends JFrame{
 	private Map<Integer, Process> mapSchFCFS;
 	private Map<Process, Integer> mapTimeRunFCFS;
 	private Map<Process, Integer> mapTimeWaitFCFS;
+	private Map<Integer, Process> mapSchSJF;
+	private Map<Process, Integer> mapTimeRunSJF;
+	private Map<Process, Integer> mapTimeWaitSJF;
 	
 	private void init() {
 		
@@ -119,10 +122,44 @@ public class MainCPUScheduling extends JFrame{
 		
 		log("[FCFS] ========================");
 		
+		//SJF
+		
+		log("[SJF] ========================");
+		
+		mapSchSJF = this.createSchedulingSJF(listPro);
+		for(Integer i : mapSchSJF.keySet()) {
+			Process p = mapSchSJF.get(i);
+			log("[SJF] at " + i + " : " + p.getName());
+		}
+		
+		log("[SJF] ========================");
+		
+		mapTimeRunSJF = this.getTurnaroundTime(listPro, mapSchSJF);
+		for(Process p : mapTimeRunSJF.keySet()) {
+			Integer i = mapTimeRunSJF.get(p);
+			log("[SJF] " + p.getName() + " Turnaround Time: " + i);
+			p.setSJF_turn(i);
+		}
+		
+		log("[SJF] ========================");
+		
+		mapTimeWaitSJF = this.getWaitingTime(listPro, mapSchSJF);
+		for(Process p : mapTimeWaitSJF.keySet()) {
+			Integer i = mapTimeWaitSJF.get(p);
+			log("[SJF] " + p.getName() + " Waiting Time: " + i);
+			p.setSJF_wait(i);
+		}
+		
+		log("[SJF] ========================");
+		
 		//gui
 		
 		clearGui();
-		createGuiPic(locY);
+		locY = 50;
+		createGuiPic(locY, "FCFS", mapSchFCFS);
+		locY += 100;
+		createGuiPic(locY, "SJF", mapSchSJF);
+		locY += 100;
         createGuiTable(locY);
 	}
 	
@@ -298,6 +335,72 @@ public class MainCPUScheduling extends JFrame{
 		return mapSch;
 	}
 	
+	private Map<Integer, Process> createSchedulingSJF(List<Process> listPro){
+		logDEBUG("[sch SJF] ========================");
+		
+		Map<Integer, Process> mapSch = new TreeMap<Integer, Process>();
+		Map<Process, Integer> mapPro = new TreeMap<Process, Integer>();
+		for(Process p : listPro) {
+			mapPro.put(p, p.getBurst());
+		}
+		
+		//如果第一個p的到達時間不是0, 前面補idle
+		Process nowP = null;
+		int next = 0;
+		
+		for(int count = 0; count <= 999; count++) {
+			next -= 1;
+			if(next <= 0) {
+				next = 0;
+				if(nowP != null && nowP != pIdle && nowP != pEND) {
+					mapPro.remove(nowP);
+				}
+				if(mapPro.isEmpty()) {
+					mapSch.put(count, pEND);
+					logDEBUG("[sch SJF] " + count + " END ");
+					break;
+				}
+				for(Process p : mapPro.keySet()) {
+					if(count < p.getArrival()) {
+						mapSch.put(count, pIdle);
+						logDEBUG("[sch SJF] " + count + " : " + pIdle.getName());
+						nowP = pIdle;
+						next = p.getArrival() - count;
+					} else {
+						mapSch.put(count, p);
+						logDEBUG("[sch SJF] " + count + " : " + p.getName());
+						nowP = p;
+						next += p.getBurst();
+					}
+					break;
+				}
+			} else {
+				boolean first = true;
+				for(Process p : mapPro.keySet()) {
+					if(first) {
+						first = false;
+						continue;
+					}
+					logDEBUG("[sch SJF] to cut " + next + "/" + count + " : " + p.getName());
+					if(count > p.getArrival()) {
+						if(next > p.getBurst()) {
+							count -= 1;
+							mapPro.put(nowP, next);
+							mapSch.put(count, p);
+							logDEBUG("[sch SJF] cut " + count + " : " + p.getName());
+							nowP = p;
+							next = p.getBurst();
+						}
+					}
+					break;
+				}
+			}
+		}
+		
+		logDEBUG("[sch SJF] ========================");
+		return mapSch;
+	}
+	
 	private Map<Process, Integer> getTurnaroundTime(List<Process> listPro, Map<Integer, Process> mapSch){
 		logDEBUG("[get turn time] ========================");
 		
@@ -361,7 +464,7 @@ public class MainCPUScheduling extends JFrame{
 		 * main frame
 		 */
 		layoutX = 1920;
-        layoutY = 500;
+        layoutY = 800;
         setSize(layoutX, layoutY);
         setTitle(frameName);
         setResizable(true);
@@ -380,7 +483,6 @@ public class MainCPUScheduling extends JFrame{
         /*
          * finish
          */
-        locY += 50;
         
         setVisible(true);
     }
@@ -409,14 +511,16 @@ public class MainCPUScheduling extends JFrame{
         containerMain.add(btn_cf);
     }
 
-	private void createGuiPic(int locY) {
+	private void createGuiPic(int locY, String name, Map<Integer, Process> map) {
 		int locX = 10;
+		containerMain.add(addJLabel(name, locX - 5, locY + 25));
+		locX += 30;
         String lastn = "";
         int lasti = -1;
-        for(Integer i : mapSchFCFS.keySet()) {
-			Process p = mapSchFCFS.get(i);
+        for(Integer i : map.keySet()) {
+			Process p = map.get(i);
 			if(lasti != -1) {
-				containerMain.add(addJLabel(String.valueOf(lasti), locX - 5, locY));
+				containerMain.add(addJLabel(String.valueOf(lasti), locX, locY));
 				int length = (i - lasti);
 				containerMain.add(addJButton(lastn, locX, locY + 25, length));
 				locX += (length * picmult);
@@ -430,8 +534,8 @@ public class MainCPUScheduling extends JFrame{
 	}
 	
 	private void createGuiTable(int locY) {
-        String[] columns = {"Process", "priority", "burst", "arrival", "Turnaround", "Waiting"};
-        Object[][] list = new Object[listPro.size()][6];
+        String[] columns = {"Process", "priority", "burst", "arrival", "FCFS_Turn", "FCFS_Wait", "SJF_Turn", "SJF_Wait"};
+        Object[][] list = new Object[listPro.size()][8];
         int count = 0;
         for(Process p : listPro) {
         	list[count][0] = p.getName();
@@ -440,13 +544,15 @@ public class MainCPUScheduling extends JFrame{
         	list[count][3] = p.getArrival();
         	list[count][4] = p.getFCFS_turn();
         	list[count][5] = p.getFCFS_wait();
+        	list[count][6] = p.getSJF_turn();
+        	list[count][7] = p.getSJF_wait();
         	count++;
         }
         JTable jt = new JTable(list, columns);
         
         JScrollPane scrollPane = new JScrollPane(jt);  
         jt.setFillsViewportHeight(true);
-        scrollPane.setBounds(0, locY + 100, layoutX, layoutY);
+        scrollPane.setBounds(0, locY, layoutX, layoutY);
         containerMain.add(scrollPane);
 	}
 	

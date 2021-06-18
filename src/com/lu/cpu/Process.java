@@ -11,6 +11,10 @@ public class Process implements Comparable<Process>{
 	private int FCFS_turn;
 	private int FCFS_wait;
 	
+	//SJF
+	private int SJF_turn;
+	private int SJF_wait;
+	
 	public Process(String name, int priority, int burst, int arrival) {
 		super();
 		this.name = name;
@@ -73,6 +77,22 @@ public class Process implements Comparable<Process>{
 
 	public void setFCFS_wait(int fCFS_wait) {
 		FCFS_wait = fCFS_wait;
+	}
+
+	public int getSJF_turn() {
+		return SJF_turn;
+	}
+
+	public void setSJF_turn(int sJF_turn) {
+		SJF_turn = sJF_turn;
+	}
+
+	public int getSJF_wait() {
+		return SJF_wait;
+	}
+
+	public void setSJF_wait(int sJF_wait) {
+		SJF_wait = sJF_wait;
 	}
 
 	@Override
